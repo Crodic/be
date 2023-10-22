@@ -1,5 +1,4 @@
 <?php
-
 class DBContext
 {
     private $servername;

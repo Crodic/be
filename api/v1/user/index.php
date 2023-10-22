@@ -1,5 +1,9 @@
 <?php
-include "vendor/autoload.php";
+include_once "../../../utils/Common.php";
+include_once "../../../configs/DBContext.php";
 
-use Firebase\JWT\JWT;
-use Firebase\JWT\Key;
+$common = new Common();
+$conn = new DBContext();
+$conn = $conn->Connection();
+
+echo $common->createToken(["data" => 1, "exp" => time()]);

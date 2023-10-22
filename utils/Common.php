@@ -1,6 +1,6 @@
 <?php
-include "../vendor/autoload.php";
-include "configs/config.php";
+include_once "../../../vendor/autoload.php";
+include_once "../../../configs/config.php";
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
