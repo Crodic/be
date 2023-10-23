@@ -29,8 +29,10 @@ switch ($action) {
             $email = $_POST["email"];
 
             if (!isset($firstname) || !isset($lastname) || !isset($email) || !isset($password)) {
+
                 http_response_code(400);
                 echo json_encode(["status" => false, "statusCode" => 400, "msg" => "Thiếu Các Thông Tin Cần Thiết."]);
+
                 exit;
             }
 
