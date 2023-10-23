@@ -20,7 +20,6 @@ $conn = $conn->Connection();
 $action = $_GET["action"];
 
 
-
 switch ($action) {
     case "register":
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -28,6 +27,13 @@ switch ($action) {
             $lastname = $_POST["lastname"];
             $password = $_POST["password"];
             $email = $_POST["email"];
+
+            if (!isset($firstname) || !isset($lastname) || !isset($email) || !isset($password)) {
+                http_response_code(400);
+                echo json_encode(["status" => false, "statusCode" => 400, "msg" => "Thiếu Các Thông Tin Cần Thiết."]);
+                exit;
+            }
+
             $fullname = "$firstname $lastname";
             $timestamp = time(); // Lấy giá trị thời gian hiện tại dưới dạng số giây
             $currentTime = date('Y-m-d H:i:s', $timestamp); // Chuyển đổi thành định dạng datetime
@@ -46,6 +52,7 @@ switch ($action) {
                 $pstm->execute($param);
                 $count = $pstm->rowCount();
                 if ($count > 0) {
+                    http_response_code(201);
                     echo json_encode([
                         "status" => true,
                         "statusCode" => 201,
@@ -53,6 +60,7 @@ switch ($action) {
                     ]);
                 }
             } catch (\Throwable $th) {
+                http_response_code(400);
                 echo json_encode([
                     "status" => false,
                     "statusCode" => 400,
@@ -61,6 +69,7 @@ switch ($action) {
                 ]);
             }
         } else {
+            http_response_code(404);
             echo json_encode([
                 "status" => false,
                 "statusCode" => 404,
@@ -73,6 +82,11 @@ switch ($action) {
             $email = $_POST['email'];
             $password = $_POST["password"];
 
+            if (!isset($email) || !isset($password)) {
+                http_response_code(400);
+                echo json_encode(["status" => false, "statusCode" => 400, "msg" => "Thiếu Các Thông Tin Cần Thiết."]);
+                exit;
+            }
             try {
                 $pstm = $conn->prepare("SELECT * FROM USER JOIN ROLE WHERE email = :email AND password = :password");
                 $params = array(
@@ -91,7 +105,7 @@ switch ($action) {
                     ];
                     $data2 = [
                         "uid" => $result["uid"],
-                        "rid" => $result["rid"],
+                        "rid" => $result["name"],
                         "exp" => time() + (24 * 60 * 60),
                         "iat" => time(),
                     ];
@@ -137,7 +151,17 @@ switch ($action) {
             ]);
         }
         break;
+    case "logout":
+        $common->setCookies("token", "", time() - 3600);
+        http_response_code(200);
+        echo json_encode([
+            "status" => true,
+            "statusCode" => 200,
+            "msg" => "Đăng Xuất Thành Công",
+        ]);
+        break;
     default:
+        http_response_code(404);
         echo json_encode([
             "status" => false,
             "statusCode" => 404,

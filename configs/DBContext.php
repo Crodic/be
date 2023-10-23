@@ -1,4 +1,5 @@
 <?php
+header("Content-type: application/json");
 class DBContext
 {
     private $servername;
@@ -40,8 +41,7 @@ class DBContext
             $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             return $this->conn;
         } catch (PDOException $e) {
-            echo "Connection Fail !! <br/>";
-            echo $e->getMessage();
+            echo json_encode(["status" => false, "statusCode" => 500, "msg" => "Connection Fail"]);
             exit();
         }
     }
