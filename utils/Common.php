@@ -4,18 +4,11 @@ include_once "../../../configs/config.php";
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
-use Cloudinary\Api\Upload\UploadApi;
-use Cloudinary\Configuration\Configuration;
 
 class Common
 {
     function __construct()
     {
-        $config = Configuration::instance();
-        $config->cloud->cloudName = cloudName;
-        $config->cloud->apiKey = apiKey;
-        $config->cloud->apiSecret = apiSecret;
-        $config->url->secure = true;
     }
 
     // Tạo Field Slug trong Database
@@ -131,30 +124,5 @@ class Common
     public function verifyPassword($server, $client)
     {
         return $server === md5($client);
-    }
-
-    public function uploadSingleImage($image)
-    {
-        $upload = new UploadApi();
-        echo $image;
-        $data = $upload->upload($image, [
-            'public_id' => "olympic_flag",
-        ]);
-        return $data["secure_url"];
-    }
-
-    public function uploadMultipleImages($images = array())
-    {
-        $results = [];
-        $upload = new UploadApi();
-        foreach ($images as $image) {
-            $data = $upload->upload($image, [
-                'public_id' => "01422crodic3009",
-                'use_filename' => TRUE,
-                'overwrite' => TRUE
-            ]);
-            array_push($results, $data);
-        }
-        return $results;
     }
 }
