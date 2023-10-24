@@ -95,13 +95,9 @@ class Common
         try {
             $decode = JWT::decode($token, new Key($key, 'HS256'));
             $data = json_encode($decode);
-            if ($decode->exp < time()) {
-                return null;
-            } else {
-                return $data;
-            }
+            return $data;
         } catch (Exception $th) {
-            return ["status" => false, "statusCode" => $th->getCode(), "msg" => "Lỗi Máy Chủ Vui Lòng Thử Lại", "error" => $th->getMessage()];
+            return null;
         }
     }
 
@@ -140,10 +136,9 @@ class Common
     public function uploadSingleImage($image)
     {
         $upload = new UploadApi();
+        echo $image;
         $data = $upload->upload($image, [
-            'public_id' => "01422crodic3009",
-            'use_filename' => TRUE,
-            'overwrite' => TRUE
+            'public_id' => "olympic_flag",
         ]);
         return $data["secure_url"];
     }
@@ -158,7 +153,7 @@ class Common
                 'use_filename' => TRUE,
                 'overwrite' => TRUE
             ]);
-            array_push($results, $data["secure_url"]);
+            array_push($results, $data);
         }
         return $results;
     }
