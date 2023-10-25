@@ -1,0 +1,41 @@
+{
+    "status": true,
+    "statusCode": 200,
+    "page": 1, // Số Trang Hiện Tại
+    "total": 2, // Tổng Số Phần Tử Trong Table
+    "totalPage": 1, // Tổng Số Trang Để Chứa Hết Phần Tử Trong Table
+    "products": [
+        {
+            "title": "Hoa Cưới Hồng Nhan",
+            "price": "200000",
+            "discount": "12",
+            "description": "Sale Ngay",
+            "slug": "hoa-cuoi-hong-nhan",
+            "pid": "4",
+            "cid": "1",
+            "isDeleted": "0",
+            "images": [
+                "http://res.cloudinary.com/dvybgdkxc/image/upload/v1698143288/store/zefv1hlczxl10ydfkpus.webp",
+                "http://res.cloudinary.com/dvybgdkxc/image/upload/v1698143287/store/nwyx28cwirnsh0lbr4qz.webp",
+                "http://res.cloudinary.com/dvybgdkxc/image/upload/v1698143287/store/uwnsruydrbroqmcb9uwe.webp",
+                "http://res.cloudinary.com/dvybgdkxc/image/upload/v1698143286/store/zk65lrta7chlhdyauwle.webp"
+            ]
+        },
+        {
+            "title": "Hoa Cưới Ngày Xuân",
+            "price": "1900000",
+            "discount": "9",
+            "description": "Test",
+            "slug": "hoa-cuoi-ngay-xuan",
+            "pid": "5",
+            "cid": "1",
+            "isDeleted": "0",
+            "images": [
+                "http://res.cloudinary.com/dvybgdkxc/image/upload/v1698195158/store/wjhhtp7yodtal1hw0tem.webp",
+                "http://res.cloudinary.com/dvybgdkxc/image/upload/v1698195158/store/r4knovyduqffg2tj23dg.webp",
+                "http://res.cloudinary.com/dvybgdkxc/image/upload/v1698195159/store/fktbnpnvjfgwmuot7hty.webp",
+                "http://res.cloudinary.com/dvybgdkxc/image/upload/v1698195160/store/dwpawaekiik6b3wroutk.webp"
+            ]
+        }
+    ]
+}
