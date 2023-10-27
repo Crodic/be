@@ -156,9 +156,17 @@ switch ($action) {
                     $total = $total + 1;
                 }
                 // SQL PHÂN TRANG
-                $pstm = $conn->prepare("SELECT * FROM product LIMIT :skip , :limit");
+                $sqlSelect = "SELECT * FROM product";
+                $paginate = "LIMIT :skip, :limit";
+                $where = "WHERE 1";
+                if (isset($_GET["category"])) {
+                    $where = "WHERE cid = :cid";
+                }
+                $cid = $_GET["category"];
+                $pstm = $conn->prepare("$sqlSelect $where $paginate");
                 $pstm->bindValue(":skip", (int) trim($skip), PDO::PARAM_INT);
                 $pstm->bindValue(":limit", (int) trim($limit), PDO::PARAM_INT);
+                $pstm->bindParam(":cid", $cid);
                 $pstm->execute();
                 $results = $pstm->fetchAll(PDO::FETCH_ASSOC);
                 $products = []; // Mảng Chứa Các Sản Phẩm
