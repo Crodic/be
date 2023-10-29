@@ -17,6 +17,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 $common = new Common();
 $conn = new DBContext();
 $conn = $conn->Connection();
+if (!isset($_GET["action"])) {
+    http_response_code(404);
+    echo json_encode([
+        "status" => false,
+        "statusCode" => 404,
+        "msg" => "Thiếu Tham Số action",
+    ]);
+    exit;
+}
+
 $action = $_GET["action"];
 
 
@@ -285,6 +295,396 @@ switch ($action) {
                 "status" => false,
                 "statusCode" => 404,
                 "msg" => "Không Thể Tìm Thấy API tương ứng",
+            ]);
+        }
+        break;
+
+    case "all":
+        if ($_SERVER["REQUEST_METHOD"] == "GET") {
+            $token = $common->getBearerToken();
+
+            if ($token && $token != -1) {
+                $tokenPayload = $common->verifyToken($token);
+
+                if ($tokenPayload) {
+                    $decodeToken = json_decode($tokenPayload, true);
+                    $userRole = $decodeToken["rid"];
+
+                    if ($userRole === "admin") {
+
+                        $page = isset($_GET["page"]) ? intval($_GET["page"]) : 1;
+                        $limit = isset($_GET["limit"]) ? intval($_GET["limit"]) : 10;
+                        if ($page <= 0) {
+                            $page = 1;
+                        }
+                        if ($limit <= 0) {
+                            $limit = 10;
+                        }
+                        $skip = ($page - 1) * $limit;
+                        $sql = "SELECT u.uid, u.fullname, u.email, u.phone_number,u.address,u.createdAt,
+                                        u.updatedAt,u.isDeleted,r.name
+                                         AS role
+                                        FROM user u
+                                        JOIN role r ON u.rid = r.rid
+                                        LIMIT :skip, :limit;";
+                        try {
+                            $pstm = $conn->prepare($sql);
+                            $pstm->bindValue(':skip', $skip, PDO::PARAM_INT);
+                            $pstm->bindValue(':limit', $limit, PDO::PARAM_INT);
+                            $pstm->execute();
+                            $results = $pstm->fetchAll(PDO::FETCH_ASSOC);
+                            $total = 0;
+                            if ($pstm->rowCount() > 0) {
+                                $pstm = $conn->prepare("SELECT * FROM user");
+                                $pstm->execute();
+                                $users = $pstm->fetchAll(PDO::FETCH_ASSOC);
+                                foreach ($users as $user) {
+                                    $total++;
+                                }
+                                $totalPages = ceil($total / $limit);
+                                http_response_code(200);
+                                echo json_encode([
+                                    "status" => true,
+                                    "statusCode" => 200,
+                                    "msg" => "Danh sách người dùng",
+                                    "users" => $results,
+                                    "page" => $page,
+                                    "total" => $total,
+                                    "totalPage" => $totalPages,
+                                ]);
+                            } else {
+                                http_response_code(404);
+                                echo json_encode([
+                                    "status" => false,
+                                    "statusCode" => 404,
+                                    "msg" => "Không tìm thấy người dùng",
+                                    "users" => [],
+                                ]);
+                            }
+                        } catch (PDOException $e) {
+                            error_log("Database Lỗi: " . $e->getMessage());
+                            http_response_code(500);
+                            echo json_encode([
+                                "status" => false,
+                                "statusCode" => 500,
+                                "msg" => "Lỗi hệ thống",
+                                "error" => "Lỗi hệ thống. Vui lòng liên hệ quản trị viên."
+                            ]);
+                        }
+                    } else {
+                        http_response_code(401);
+                        echo json_encode([
+                            "status" => false,
+                            "statusCode" => 401,
+                            "msg" => "Bạn không đủ quyền để truy cập chức năng này",
+                        ]);
+                    }
+                } else {
+                    http_response_code(403);
+                    echo json_encode([
+                        "status" => false,
+                        "statusCode" => 403,
+                        "msg" => "Token Hết Hạn",
+                    ]);
+                }
+            } else {
+                http_response_code(403);
+                echo json_encode([
+                    "status" => false,
+                    "statusCode" => 403,
+                    "msg" => "Token không hợp lệ",
+                ]);
+            }
+        } else {
+            http_response_code(404);
+            echo json_encode([
+                "status" => false,
+                "statusCode" => 404,
+                "msg" => "Không tìm thấy API tương ứng",
+            ]);
+        }
+        break;
+    case "update":
+        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            // Get the user's token
+            $token = $common->getBearerToken();
+            if ($token && $token != -1) {
+                $tokenPayload = $common->verifyToken($token);
+
+                if ($tokenPayload) {
+                    $decodeToken = json_decode($tokenPayload, true);
+                    $uid = $decodeToken["uid"];
+                    if (isset($_GET["uid"]) && $_GET["uid"] == $uid) {
+                        $address = isset($_POST["address"]) ? filter_var($_POST["address"]) : null;
+                        $phone_number = isset($_POST["phone_number"]) ? filter_var($_POST["phone_number"]) : null;
+                        // SQL Update user 
+                        $updateQuery = "UPDATE User SET address = :address, phone_number = :phone_number, updatedAt = :updatedAt WHERE uid = :uid";
+                        $updateParams = array(
+                            "address" => $address,
+                            "phone_number" => $phone_number,
+                            "updatedAt" => date('Y-m-d H:i:s', time()),
+                            "uid" => $uid
+                        );
+
+                        try {
+                            $updateStatement = $conn->prepare($updateQuery);
+                            $updateStatement->execute($updateParams);
+
+                            if ($updateStatement->rowCount() > 0) {
+                                $selectQuery = "SELECT * FROM User WHERE uid = :uid";
+                                $selectParams = array("uid" => $uid);
+
+                                $selectStatement = $conn->prepare($selectQuery);
+                                $selectStatement->execute($selectParams);
+
+                                if ($selectStatement->rowCount() > 0) {
+                                    $result = $selectStatement->fetch(PDO::FETCH_ASSOC);
+                                    // Exclude sensitive information like password
+                                    unset($result["password"]);
+
+                                    http_response_code(200);
+                                    echo json_encode([
+                                        "status" => true,
+                                        "statusCode" => 200,
+                                        "msg" => "Cập nhật thông tin thành công",
+                                        "user" => $result
+                                    ]);
+                                } else {
+                                    http_response_code(404);
+                                    echo json_encode([
+                                        "status" => false,
+                                        "statusCode" => 404,
+                                        "msg" => "Không tìm thấy người dùng",
+                                    ]);
+                                }
+                            } else {
+                                http_response_code(400);
+                                echo json_encode([
+                                    "status" => false,
+                                    "statusCode" => 400,
+                                    "msg" => "Cập nhật thông tin thất bại",
+                                ]);
+                            }
+                        } catch (PDOException $e) {
+                            http_response_code(500);
+                            echo json_encode([
+                                "status" => false,
+                                "statusCode" => 500,
+                                "msg" => "Lỗi hệ thống",
+                                "error" => "Lỗi hệ thống. Vui lòng liên hệ quản trị viên."
+                            ]);
+                        }
+                    } else {
+                        http_response_code(403);
+                        echo json_encode([
+                            "status" => false,
+                            "statusCode" => 403,
+                            "msg" => "Không có quyền cập nhật thông tin của người dùng khác",
+                        ]);
+                    }
+                } else {
+                    http_response_code(403);
+                    echo json_encode([
+                        "status" => false,
+                        "statusCode" => 403,
+                        "msg" => "Token Hết Hạn",
+                    ]);
+                }
+            } else {
+                http_response_code(403);
+                echo json_encode([
+                    "status" => false,
+                    "statusCode" => 403,
+                    "msg" => "Token không hợp lệ",
+                ]);
+            }
+        } else {
+            http_response_code(404);
+            echo json_encode([
+                "status" => false,
+                "statusCode" => 404,
+                "msg" => "Không Thể Tìm Thấy API tương ứng",
+            ]);
+        }
+        break;
+
+    case "change-password":
+        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            $token = $common->getBearerToken();
+            if ($token && $token != -1) {
+                $tokenPayload = $common->verifyToken($token);
+
+                if ($tokenPayload) {
+                    $decodeToken = json_decode($tokenPayload, true);
+                    $uid = $decodeToken["uid"];
+                    if (isset($_GET["uid"]) && $_GET["uid"] == $uid) {
+                        $newPassword = $_POST["new_password"];
+                        $oldPassword = $_POST["old_password"];
+                        $selectUser = "SELECT * FROM user where uid=:uid and password = :password";
+                        $pstm = $conn->prepare($selectUser);
+                        $pstm->execute(array(
+                            "uid" => $uid,
+                            "password" => md5($oldPassword),
+                        ));
+                        if ($pstm->rowCount() > 0) {
+                            $hashedNewPassword = md5($newPassword);
+                            $updateQuery = "UPDATE User SET password = :password, updatedAt = :updatedAt WHERE uid = :uid";
+                            $updateParams = array(
+                                "password" => $hashedNewPassword,
+                                "updatedAt" => date('Y-m-d H:i:s', time()),
+                                "uid" => $uid
+                            );
+
+                            try {
+                                $updateStatement = $conn->prepare($updateQuery);
+                                $updateStatement->execute($updateParams);
+
+                                if ($updateStatement->rowCount() > 0) {
+                                    http_response_code(200);
+                                    echo json_encode([
+                                        "status" => true,
+                                        "statusCode" => 200,
+                                        "msg" => "Thay đổi mật khẩu thành công",
+                                    ]);
+                                } else {
+                                    http_response_code(400);
+                                    echo json_encode([
+                                        "status" => false,
+                                        "statusCode" => 400,
+                                        "msg" => "Thay đổi mật khẩu không thành công",
+                                    ]);
+                                }
+                            } catch (PDOException $e) {
+                                http_response_code(500);
+                                echo json_encode([
+                                    "status" => false,
+                                    "statusCode" => 500,
+                                    "msg" => "Lỗi hệ thống",
+                                    "error" => "Lỗi hệ thống. Vui lòng liên hệ quản trị viên."
+                                ]);
+                            }
+                        } else {
+
+                            http_response_code(400);
+                            echo json_encode([
+                                "status" => false,
+                                "statusCode" => 400,
+                                "msg" => "Mật khẩu bạn nhập không trùng khớp với mật khẩu hệ thống",
+                            ]);
+                        }
+                    } else {
+                        http_response_code(403);
+                        echo json_encode([
+                            "status" => false,
+                            "statusCode" => 403,
+                            "msg" => "Không có quyền cập nhật thông tin của người dùng khác",
+                        ]);
+                    }
+                } else {
+                    http_response_code(403);
+                    echo json_encode([
+                        "status" => false,
+                        "statusCode" => 403,
+                        "msg" => "Token hết hạn",
+                    ]);
+                }
+            } else {
+                http_response_code(403);
+                echo json_encode([
+                    "status" => false,
+                    "statusCode" => 403,
+                    "msg" => "Token không hợp lệ",
+                ]);
+            }
+        } else {
+            http_response_code(404);
+            echo json_encode([
+                "status" => false,
+                "statusCode" => 404,
+                "msg" => "Không tìm thấy API tương ứng",
+            ]);
+        }
+        break;
+    case "block-account":
+        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            // Check the user's token
+            $token = $common->getBearerToken();
+
+            if ($token && $token != -1) {
+                $tokenPayload = $common->verifyToken($token);
+
+                if ($tokenPayload) {
+                    $decodedToken = json_decode($tokenPayload, true);
+                    $currentUserRole = $decodedToken["rid"];
+                    $uid = $decodedToken["uid"];
+                    if ($currentUserRole === "admin") {
+                        $targetUserID = $_POST["uid"];
+                        $checkUserQuery = "SELECT * FROM user join role on user.rid=role.rid WHERE uid = :uid ";
+                        $checkUserParams = array("uid" => $targetUserID);
+
+                        $checkUserStatement = $conn->prepare($checkUserQuery);
+                        $checkUserStatement->execute($checkUserParams);
+
+                        if ($checkUserStatement->rowCount() > 0 && $checkUserStatement->fetch(PDO::FETCH_ASSOC)["name"] !== "admin") {
+                            $blockUserQuery = "UPDATE User SET isDeleted = 1 WHERE uid = :uid";
+                            $blockUserParams = array("uid" => $targetUserID);
+
+                            $blockUserStatement = $conn->prepare($blockUserQuery);
+                            $blockUserStatement->execute($blockUserParams);
+
+                            if ($blockUserStatement->rowCount() > 0) {
+                                http_response_code(200);
+                                echo json_encode([
+                                    "status" => true,
+                                    "statusCode" => 200,
+                                    "msg" => "Chặn người dùng thành công",
+                                ]);
+                            } else {
+                                http_response_code(400);
+                                echo json_encode([
+                                    "status" => false,
+                                    "statusCode" => 400,
+                                    "msg" => "Chặn người dùng thất bại",
+                                ]);
+                            }
+                        } else {
+                            http_response_code(403);
+                            echo json_encode([
+                                "status" => false,
+                                "statusCode" => 403,
+                                "msg" => "Bạn không thể chặn tài khoản admin khác",
+                            ]);
+                        }
+                    } else {
+                        http_response_code(403);
+                        echo json_encode([
+                            "status" => false,
+                            "statusCode" => 403,
+                            "msg" => "Bạn không có quyền chặn vai trò của người dùng",
+                        ]);
+                    }
+                } else {
+                    http_response_code(403);
+                    echo json_encode([
+                        "status" => false,
+                        "statusCode" => 403,
+                        "msg" => "Token hết hạn",
+                    ]);
+                }
+            } else {
+                http_response_code(403);
+                echo json_encode([
+                    "status" => false,
+                    "statusCode" => 403,
+                    "msg" => "Token không hợp lệ",
+                ]);
+            }
+        } else {
+            http_response_code(404);
+            echo json_encode([
+                "status" => false,
+                "statusCode" => 404,
+                "msg" => "Không tìm thấy API tương ứng",
             ]);
         }
         break;

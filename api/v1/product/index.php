@@ -18,9 +18,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 $common = new Common();
 $conn = new DBContext();
 $conn = $conn->Connection();
-$action = $_GET["action"];
 
-if (!isset($action)) {
+if (!isset($_GET["action"])) {
     http_response_code(404);
     echo json_encode([
         "status" => false,
@@ -30,10 +29,7 @@ if (!isset($action)) {
     exit;
 }
 
-$titleSearchData = null;
-if (isset($_POST["title"])) {
-    $titleSearchData = $_POST["title"];
-}
+$action = $_GET["action"];
 
 switch ($action) {
     case "create":
