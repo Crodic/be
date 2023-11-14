@@ -3,7 +3,7 @@
 define("servername", "localhost");
 define("username", "root");
 define("password", "");
-define("dbname", "camestore");
+define("dbname", "alice01422@gmail.com");
 define("env", "dev");
 define("secretKey", "doanchuyennganh_cuoikhoa_D20_TH08_BienPhat+DangHao@stu.edu.vn");
 define("cloudName", "dvybgdkxc");

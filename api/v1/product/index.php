@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 include_once "../../../utils/Common.php";
 include_once "../../../configs/DBContext.php";
@@ -142,6 +142,10 @@ switch ($action) {
         break;
     case "get-all":
         if ($_SERVER["REQUEST_METHOD"] == "GET") {
+            // Lấy data sort
+            $sort = isset($_GET["sort"]) ? $_GET["sort"] : -1;
+            $dateCreate = isset($_GET["new"]) ? $_GET["new"] : -1;
+
             // Thuật Toán Phân Trang
             $page = isset($_GET["page"]) ? $_GET["page"] : 1;
             $limit = isset($_GET["limit"]) ? $_GET["limit"] : 20;
@@ -158,14 +162,32 @@ switch ($action) {
                 // SQL PHÂN TRANG
                 $sqlSelect = "SELECT * FROM product";
                 $paginate = "LIMIT :skip, :limit;";
-                $where = "WHERE 1";
+                $where = "WHERE isDeleted = false";
+
+                // SQL Filter Category
                 if (isset($_GET["category"])) {
                     $where .= " AND cid = :cid";
                 }
-                $query = "$sqlSelect $where $paginate";
+
+                // SQL sort price
+                $sortFilter = "";
+                if ($sort !== -1) {
+                    if ($dateCreate !== -1) {
+                        $sortFilter = "ORDER BY price $sort, createdAt $dateCreate";
+                    } else {
+                        $sortFilter = "ORDER BY price $sort";
+                    }
+                } else {
+                    if ($dateCreate !== -1) {
+                        $sortFilter = "ORDER BY createdAt $dateCreate";
+                    }
+                }
+                $query = "$sqlSelect $where $sortFilter $paginate";
                 $pstm = $conn->prepare($query);
                 $pstm->bindValue(":skip", (int) trim($skip), PDO::PARAM_INT);
                 $pstm->bindValue(":limit", (int) trim($limit), PDO::PARAM_INT);
+
+                // Bind Value Sort Category
                 if (isset($_GET["category"])) {
                     $cid = $_GET["category"];
                     $pstm->bindValue(":cid", (int) trim($cid), PDO::PARAM_INT);
@@ -179,7 +201,7 @@ switch ($action) {
                         "title" => $data["title"],
                         "price" => $data["price"],
                         "discount" => $data["discount"],
-                        "description" => $data["description_product"],
+                        "description" => $data["description"],
                         "slug" => $data["slug"],
                         "pid" => $data["pid"],
                         "cid" => $data["cid"],
@@ -306,6 +328,62 @@ switch ($action) {
                     "totalPage" => $totalPage,
                     "products" => $products
                 ]);
+            } catch (\Throwable $th) {
+                http_response_code(400);
+                echo json_encode([
+                    "status" => false,
+                    "statusCode" => 400,
+                    "msg" => "Lấy Danh Sách Sản Phẩm Thất Bại.",
+                    "Error" => $th->getMessage(),
+                ]);
+            }
+        } else {
+            http_response_code(404);
+            echo json_encode([
+                "status" => false,
+                "statusCode" => 404,
+                "msg" => "Không Tìm Thấy API Tương Ứng",
+            ]);
+        }
+        break;
+    case "get-product":
+        if ($_SERVER["REQUEST_METHOD"] == "GET") {
+            $pid = $_GET["pid"];
+            try {
+                $sql = "SELECT * FROM product WHERE pid = :pid";
+                $params = array(
+                    "pid" => $pid
+                );
+                $pstm = $conn->prepare($sql);
+                $pstm->execute($params);
+                if ($pstm->rowCount() > 0) {
+                    $imgs = [];
+                    $data = $pstm->fetch(PDO::FETCH_ASSOC);
+                    $pstmImg = $conn->prepare("SELECT * FROM imagesproduct WHERE pid = :pid");
+                    $pstmImg->execute(array(
+                        "pid" => $data["pid"]
+                    ));
+                    if ($pstmImg->rowCount() > 0) {
+                        $listImage = $pstmImg->fetchAll(PDO::FETCH_ASSOC);
+                        foreach ($listImage as $img) {
+                            array_push($imgs, $img["description"]);
+                        }
+                        $data["images"] = $imgs;
+                    }
+                    http_response_code(200);
+                    echo json_encode([
+                        "status" => true,
+                        "statusCode" => 200,
+                        "product" => $data,
+                    ]);
+                } else {
+                    http_response_code(404);
+                    echo json_encode([
+                        "status" => false,
+                        "statusCode" => 404,
+                        "msg" => "Không Tìm Thấy Sản Phẩm",
+                    ]);
+                }
             } catch (\Throwable $th) {
                 http_response_code(400);
                 echo json_encode([

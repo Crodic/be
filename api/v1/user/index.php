@@ -108,6 +108,15 @@ switch ($action) {
                 $count = $pstm->rowCount();
                 if ($count > 0) {
                     $result = $pstm->fetch(PDO::FETCH_ASSOC);
+                    if ($result["isDeleted"] == 1) {
+                        http_response_code(403);
+                        echo json_encode([
+                            "status" => false,
+                            "statusCode" => 403,
+                            "msg" => "Tài Khoản Của Bạn Đã Bị Khoá",
+                        ]);
+                        exit;
+                    }
                     $data = [
                         "uid" => $result["uid"],
                         "rid" => $result["name"],
@@ -406,72 +415,80 @@ switch ($action) {
         break;
     case "update":
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            // Get the user's token
             $token = $common->getBearerToken();
             if ($token && $token != -1) {
-                $tokenPayload = $common->verifyToken($token);
+                try {
+                    $tokenPayload = $common->verifyToken($token);
 
-                if ($tokenPayload) {
-                    $decodeToken = json_decode($tokenPayload, true);
-                    $uid = $decodeToken["uid"];
-                    if (isset($_GET["uid"]) && $_GET["uid"] == $uid) {
-                        $address = isset($_POST["address"]) ? filter_var($_POST["address"]) : null;
-                        $phone_number = isset($_POST["phone_number"]) ? filter_var($_POST["phone_number"]) : null;
-                        // SQL Update user 
-                        $updateQuery = "UPDATE User SET address = :address, phone_number = :phone_number, updatedAt = :updatedAt WHERE uid = :uid";
-                        $updateParams = array(
-                            "address" => $address,
-                            "phone_number" => $phone_number,
-                            "updatedAt" => date('Y-m-d H:i:s', time()),
-                            "uid" => $uid
-                        );
+                    if ($tokenPayload) {
+                        $decodeToken = json_decode($tokenPayload, true);
+                        $uid = $decodeToken["uid"];
+                        if (isset($_GET["uid"]) && $_GET["uid"] == $uid) {
+                            $address = isset($_POST["address"]) ? filter_var($_POST["address"]) : null;
+                            $phone_number = isset($_POST["phone_number"]) ? filter_var($_POST["phone_number"]) : null;
+                            // SQL Update user 
+                            $updateQuery = "UPDATE User SET address = :address, phone_number = :phone_number, updatedAt = :updatedAt WHERE uid = :uid";
+                            $updateParams = array(
+                                "address" => $address,
+                                "phone_number" => $phone_number,
+                                "updatedAt" => date('Y-m-d H:i:s', time()),
+                                "uid" => $uid
+                            );
 
-                        try {
-                            $updateStatement = $conn->prepare($updateQuery);
-                            $updateStatement->execute($updateParams);
+                            try {
+                                $updateStatement = $conn->prepare($updateQuery);
+                                $updateStatement->execute($updateParams);
 
-                            if ($updateStatement->rowCount() > 0) {
-                                $selectQuery = "SELECT * FROM User WHERE uid = :uid";
-                                $selectParams = array("uid" => $uid);
+                                if ($updateStatement->rowCount() > 0) {
+                                    $selectQuery = "SELECT * FROM User WHERE uid = :uid";
+                                    $selectParams = array("uid" => $uid);
 
-                                $selectStatement = $conn->prepare($selectQuery);
-                                $selectStatement->execute($selectParams);
+                                    $selectStatement = $conn->prepare($selectQuery);
+                                    $selectStatement->execute($selectParams);
 
-                                if ($selectStatement->rowCount() > 0) {
-                                    $result = $selectStatement->fetch(PDO::FETCH_ASSOC);
-                                    // Exclude sensitive information like password
-                                    unset($result["password"]);
+                                    if ($selectStatement->rowCount() > 0) {
+                                        $result = $selectStatement->fetch(PDO::FETCH_ASSOC);
+                                        // Exclude sensitive information like password
+                                        unset($result["password"]);
 
-                                    http_response_code(200);
-                                    echo json_encode([
-                                        "status" => true,
-                                        "statusCode" => 200,
-                                        "msg" => "Cập nhật thông tin thành công",
-                                        "user" => $result
-                                    ]);
+                                        http_response_code(200);
+                                        echo json_encode([
+                                            "status" => true,
+                                            "statusCode" => 200,
+                                            "msg" => "Cập nhật thông tin thành công",
+                                            "user" => $result
+                                        ]);
+                                    } else {
+                                        http_response_code(404);
+                                        echo json_encode([
+                                            "status" => false,
+                                            "statusCode" => 404,
+                                            "msg" => "Không tìm thấy người dùng",
+                                        ]);
+                                    }
                                 } else {
-                                    http_response_code(404);
+                                    http_response_code(400);
                                     echo json_encode([
                                         "status" => false,
-                                        "statusCode" => 404,
-                                        "msg" => "Không tìm thấy người dùng",
+                                        "statusCode" => 400,
+                                        "msg" => "Cập nhật thông tin thất bại",
                                     ]);
                                 }
-                            } else {
-                                http_response_code(400);
+                            } catch (PDOException $e) {
+                                http_response_code(500);
                                 echo json_encode([
                                     "status" => false,
-                                    "statusCode" => 400,
-                                    "msg" => "Cập nhật thông tin thất bại",
+                                    "statusCode" => 500,
+                                    "msg" => "Lỗi hệ thống",
+                                    "error" => "Lỗi hệ thống. Vui lòng liên hệ quản trị viên."
                                 ]);
                             }
-                        } catch (PDOException $e) {
-                            http_response_code(500);
+                        } else {
+                            http_response_code(403);
                             echo json_encode([
                                 "status" => false,
-                                "statusCode" => 500,
-                                "msg" => "Lỗi hệ thống",
-                                "error" => "Lỗi hệ thống. Vui lòng liên hệ quản trị viên."
+                                "statusCode" => 403,
+                                "msg" => "Không có quyền cập nhật thông tin của người dùng khác",
                             ]);
                         }
                     } else {
@@ -479,15 +496,15 @@ switch ($action) {
                         echo json_encode([
                             "status" => false,
                             "statusCode" => 403,
-                            "msg" => "Không có quyền cập nhật thông tin của người dùng khác",
+                            "msg" => "Token Hết Hạn",
                         ]);
                     }
-                } else {
-                    http_response_code(403);
+                } catch (\Throwable $th) {
+                    http_response_code(500);
                     echo json_encode([
                         "status" => false,
-                        "statusCode" => 403,
-                        "msg" => "Token Hết Hạn",
+                        "statusCode" => 500,
+                        "msg" => $th,
                     ]);
                 }
             } else {
