@@ -76,14 +76,14 @@ class Common
     }
 
     // Tạo Token
-    public function createToken($data, $key = secretKey)
+    public function createToken($data, $key = "dh52006010")
     {
         $encode = JWT::encode($data, $key, "HS256");
         return $encode;
     }
 
     // Xác Thực Token
-    public function verifyToken($token, $key = secretKey)
+    public function verifyToken($token, $key = "dh52006010")
     {
         try {
             $decode = JWT::decode($token, new Key($key, 'HS256'));
@@ -95,7 +95,7 @@ class Common
     }
 
     // Tạo Cookies
-    public function setCookies($key, $value, $expire, $env = env)
+    public function setCookies($key, $value, $expire, $env = "production")
     {
         if ($env == "dev") {
             setcookie($key, $value, $expire, "/", "", false, true);
