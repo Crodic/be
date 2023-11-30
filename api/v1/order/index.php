@@ -20,6 +20,91 @@ $conn = $conn->Connection();
 $action = $_GET["action"];
 
 switch ($action) {
+    case "get-all-order":
+        if ($_SERVER['REQUEST_METHOD'] == 'GET') {
+            $token = $common->getBearerToken();
+            if ($token && $token != -1) {
+                $tokenPayload = $common->verifyToken($token);
+                if ($tokenPayload) {
+                    $decodeToken = json_decode($tokenPayload, true);
+                    $uid = $decodeToken["uid"];
+                    try {
+                        $fetchOrderQuery = "SELECT * FROM orders WHERE user_id = :user_id";
+                        $fetchOrderParams = array(
+                            "user_id" => $uid,
+                        );
+                        $fetchOrderStatement = $conn->prepare($fetchOrderQuery);
+                        $fetchOrderStatement->execute($fetchOrderParams);
+                        $orderDetails = $fetchOrderStatement->fetchAll(PDO::FETCH_ASSOC);
+                        $orderArray = array();
+                        foreach ($orderDetails as $order) {
+                            $pstm10 = $conn->prepare("SELECT * FROM orderdetail where order_id = :order_id");
+                            $paramsOrder = array(
+                                "order_id" => $order["id"]
+                            );
+                            $pstm10->execute($paramsOrder);
+                            $data = $pstm10->fetchAll(PDO::FETCH_ASSOC);
+                            $array = [];
+                            foreach ($data as $item) {
+                                $fetchInforProduct = $conn->prepare("SELECT * FROM imagesproduct WHERE pid = :pid");
+                                $infor = $fetchInforProduct->execute(array(
+                                    "pid" => $item["pid"]
+                                ));
+                                $datas = $fetchInforProduct->fetchAll(PDO::FETCH_ASSOC);
+                                foreach ($datas as $ip) {
+                                    $item["images"] = $ip["description"];
+                                }
+
+                                $fetchNameProduct = $conn->prepare("SELECT * FROM product WHERE pid = :pid");
+                                $fetchNameProduct->execute(array("pid" => $item["pid"]));
+                                $row = $fetchNameProduct->fetch(PDO::FETCH_ASSOC);
+                                $item["title"] = $row["title"];
+                                array_push($array, $item);
+                            }
+                            $order["product"] = $array;
+                            array_push($orderArray, $order);
+                        }
+
+                        http_response_code(200);
+                        echo json_encode([
+                            "status" => true,
+                            "statusCode" => 200,
+                            "order" => $orderArray,
+                        ]);
+                    } catch (\Throwable $th) {
+                        http_response_code(500);
+                        echo json_encode([
+                            "status" => false,
+                            "statusCode" => 500,
+                            "msg" => "Database Lỗi!!!!",
+                            "error" => $th->getMessage(),
+                        ]);
+                    }
+                } else {
+                    http_response_code(403);
+                    echo json_encode([
+                        "status" => false,
+                        "statusCode" => 403,
+                        "msg" => "Token Hết Hạn",
+                    ]);
+                }
+            } else {
+                http_response_code(403);
+                echo json_encode([
+                    "status" => false,
+                    "statusCode" => 403,
+                    "msg" => "Token không hợp lệ",
+                ]);
+            }
+        } else {
+            http_response_code(404);
+            echo json_encode([
+                "status" => false,
+                "statusCode" => 404,
+                "msg" => "Không Thể Tìm Thấy API tương ứng",
+            ]);
+        }
+        break;
     case "get-order":
         if ($_SERVER['REQUEST_METHOD'] == 'GET') {
             $token = $common->getBearerToken();

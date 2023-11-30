@@ -366,8 +366,11 @@ switch ($action) {
             $skip = (int) ($page - 1) * $limit;
             try {
                 // Lấy Ra Tổng Số Phần Tử Trong Table
-                $total = 0;
-                $pstm = $conn->prepare("SELECT * FROM product");
+                $total = 1;
+                $pstm = $conn->prepare("SELECT * FROM product WHERE title LIKE :title");
+                $title = $_POST["title"];
+                $dataTitleAll = "%$title%";
+                $pstm->bindParam(":title", $dataTitleAll);
                 $pstm->execute();
                 $allData = $pstm->fetchAll(PDO::FETCH_ASSOC);
                 foreach ($allData as $count) {
@@ -405,7 +408,7 @@ switch ($action) {
                         "title" => $data["title"],
                         "price" => $data["price"],
                         "discount" => $data["discount"],
-                        "description" => $data["description_product"],
+                        "description" => $data["description"],
                         "slug" => $data["slug"],
                         "pid" => $data["pid"],
                         "cid" => $data["cid"],
