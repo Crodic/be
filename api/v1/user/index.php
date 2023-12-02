@@ -259,19 +259,25 @@ switch ($action) {
                         $pstm->execute($params);
                         if ($pstm->rowCount() > 0) {
                             $result = $pstm->fetch(PDO::FETCH_ASSOC);
+                            $fetchTotalOrder = $conn->prepare("SELECT * FROM orders WHERE user_id = :uid");
+                            $fetchTotalOrder->execute(array(
+                                "uid" => $uid,
+                            ));
+                            $rows = $fetchTotalOrder->fetchAll(PDO::FETCH_ASSOC);
                             http_response_code(200);
                             echo json_encode([
                                 "status" => true,
                                 "statusCode" => 200,
                                 "msg" => "Lấy Thông Tin Người Dùng Thành Công",
-                                "user" => ["uid" => $result["uid"], "email" => $result["email"], "fullname" => $result["fullname"], "role" => $result["name"], "phone" => $result["phone_number"], "address" => $result["address"], "isDeleted" => $result["isDeleted"]]
+                                "user" => ["uid" => $result["uid"], "email" => $result["email"], "fullname" => $result["fullname"], "role" => $result["name"], "phone" => $result["phone_number"], "address" => $result["address"], "isDeleted" => $result["isDeleted"], "total" => count($rows),]
                             ]);
                         } else {
                             http_response_code(404);
                             echo json_encode([
                                 "status" => false,
                                 "statusCode" => 404,
-                                "msg" => "Không tìm thấy user"
+                                "msg" => "Không tìm thấy user",
+                                "user" => []
                             ]);
                         }
                     } else {
